@@ -202,7 +202,7 @@ def show_dashboard():
     col1, col2 = st.columns([1, 3])
     with col1:
         st.image(
-            "janardhana.jpg",
+            "janardhana.png",
             caption=s_name,
             width=150,
         )
