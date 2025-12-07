@@ -1,11 +1,8 @@
 import streamlit as st
 import sqlite3
-from pathlib import Path
 import pandas as pd
-import random
 
 DB_NAME = "student_portal.db"
-
 
 # ---------- DATABASE SETUP ----------
 
@@ -14,7 +11,7 @@ def get_connection():
 
 
 def init_db():
-    """Create tables and seed sample data if empty."""
+    """Create tables if they do not exist (no sample seeding here)."""
     conn = get_connection()
     cur = conn.cursor()
 
@@ -55,91 +52,21 @@ def init_db():
         """
     )
 
-    # Check if there are already students
-    cur.execute("SELECT COUNT(*) FROM students;")
-    count = cur.fetchone()[0]
-
-    if count == 0:
-        seed_sample_data(cur)
-
     conn.commit()
     conn.close()
-
-
-def seed_sample_data(cur):
-    """Insert 30 sample students and some marks for them."""
-    branches = ["CSE", "ECE", "ME", "EEE", "CIVIL"]
-    sections = ["A", "B"]
-
-    # Insert 30 students
-    for i in range(1, 31):
-        usn = f"USN{i:03d}"
-        name = f"Student {i}"
-        branch = random.choice(branches)
-        semester = random.randint(1, 8)
-        section = random.choice(sections)
-        email = f"student{i}@college.edu"
-        phone = f"9{random.randint(100000000, 999999999)}"
-        password = "password"  # default password for demo
-        photo_url = ""  # can be used later for real photos
-
-        cur.execute(
-            """
-            INSERT INTO students (usn, name, branch, semester, section, email, phone, password, photo_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
-            """,
-            (usn, name, branch, semester, section, email, phone, password, photo_url),
-        )
-
-        # Add marks for 2 semesters (for demo)
-        for sem in [1, 2]:
-            subjects = [
-                ("MAT" + str(sem), f"Mathematics {sem}"),
-                ("PHY" + str(sem), f"Physics {sem}"),
-                ("CS" + str(sem), f"Computer Science {sem}"),
-                ("ELE" + str(sem), f"Electronics {sem}"),
-                ("ENG" + str(sem), f"English {sem}"),
-            ]
-
-            for code, name_sub in subjects:
-                internal = random.randint(15, 30)
-                external = random.randint(10, 70)
-                total = internal + external
-
-                if total >= 90:
-                    grade = "S"
-                elif total >= 80:
-                    grade = "A"
-                elif total >= 70:
-                    grade = "B"
-                elif total >= 60:
-                    grade = "C"
-                elif total >= 50:
-                    grade = "D"
-                else:
-                    grade = "F"
-
-                result = "PASS" if total >= 50 else "FAIL"
-
-                cur.execute(
-                    """
-                    INSERT INTO marks (usn, semester, subject_code, subject_name, internal, external, total, grade, result)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
-                    """,
-                    (usn, sem, code, name_sub, internal, external, total, grade, result),
-                )
 
 
 # ---------- DATA ACCESS FUNCTIONS ----------
 
 def get_student_by_login(usn, password):
+    """Case-insensitive USN match + exact password."""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(
         """
         SELECT usn, name, branch, semester, section, email, phone, photo_url
         FROM students
-        WHERE usn = ? AND password = ?;
+        WHERE UPPER(usn) = UPPER(?) AND password = ?;
         """,
         (usn, password),
     )
@@ -206,7 +133,7 @@ def get_overall_stats(usn):
         """
         SELECT total, result
         FROM marks
-        WHERE usn = ?;
+        WHERE usn = ?
         """,
         (usn,),
     )
@@ -220,8 +147,7 @@ def get_overall_stats(usn):
     results = [r[1] for r in rows]
 
     avg_total = sum(totals) / len(totals)
-    # Fake CGPA calculation: scale 0-100 to 0-10
-    cgpa = round(avg_total / 10, 2)
+    cgpa = round(avg_total / 10, 2)  # approximate
     overall_result = "FAIL" if "FAIL" in results else "PASS"
 
     return cgpa, overall_result
@@ -275,11 +201,10 @@ def show_dashboard():
     # Student Profile
     col1, col2 = st.columns([1, 3])
     with col1:
-        # Placeholder photo
         st.image(
-            "https://via.placeholder.com/150?text=Photo",
+            "janardhana.jpg",
             caption=s_name,
-            use_column_width=True,
+            width=150,
         )
     with col2:
         st.subheader(s_name)
@@ -318,7 +243,6 @@ def show_dashboard():
         )
         st.dataframe(df, use_container_width=True)
 
-        # Semester stats
         totals = df["Total Marks"]
         avg_total = totals.mean()
         sgpa = round(avg_total / 10, 2)  # fake SGPA
@@ -361,7 +285,7 @@ def show_dashboard():
 def main():
     st.set_page_config(page_title="Student Portal", page_icon="🎓", layout="wide")
 
-    # Initialize database (create & seed if needed)
+    # Only ensure tables exist – no seeding here
     init_db()
 
     if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
@@ -372,3 +296,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

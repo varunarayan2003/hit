@@ -13,7 +13,7 @@ DB_NAME = "student_portal.db"
 
 if os.path.exists(DB_NAME):
     os.remove(DB_NAME)
-    print("Old database deleted. Creating a fresh one...")
+    print("Old database deleted. Creating a fresh one.")
 
 # ------------------------------
 # CONNECT TO DATABASE
@@ -135,7 +135,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     "A",            # section assumption
     "janardhana@example.com",
     "9876543210",
-    "password",
+    "password",     # LOGIN PASSWORD
     ""
 ))
 
@@ -143,10 +143,7 @@ print("✅ Real student KIM0045 inserted/updated")
 
 # ------------------------------
 # REAL MARKS DATA FOR KIM0045
-# (All values taken from your mark statements)
 # ------------------------------
-
-
 real_marks_data = [
 
     # ---------- SEM 1 ----------
