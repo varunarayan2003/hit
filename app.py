@@ -1,299 +1,216 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
+import os
 
 DB_NAME = "student_portal.db"
 
-# ---------- DATABASE SETUP ----------
+# ---------------- DATABASE ----------------
 
-def get_connection():
+def get_conn():
     return sqlite3.connect(DB_NAME, check_same_thread=False)
 
-
 def init_db():
-    """Create tables if they do not exist (no sample seeding here)."""
-    conn = get_connection()
+    conn = get_conn()
     cur = conn.cursor()
 
-    # Create students table
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS students (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            usn TEXT UNIQUE,
-            name TEXT,
-            branch TEXT,
-            semester INTEGER,
-            section TEXT,
-            email TEXT,
-            phone TEXT,
-            password TEXT,
-            photo_url TEXT
-        );
-        """
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS students (
+        usn TEXT PRIMARY KEY,
+        name TEXT,
+        branch TEXT,
+        semester INTEGER,
+        section TEXT,
+        email TEXT,
+        phone TEXT,
+        password TEXT,
+        photo TEXT
     )
+    """)
 
-    # Create marks table
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS marks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            usn TEXT,
-            semester INTEGER,
-            subject_code TEXT,
-            subject_name TEXT,
-            internal INTEGER,
-            external INTEGER,
-            total INTEGER,
-            grade TEXT,
-            result TEXT,
-            FOREIGN KEY(usn) REFERENCES students(usn)
-        );
-        """
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS marks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        usn TEXT,
+        semester INTEGER,
+        subject_code TEXT,
+        subject_name TEXT,
+        internal INTEGER,
+        external INTEGER,
+        total INTEGER,
+        grade TEXT,
+        result TEXT,
+        UNIQUE(usn, semester, subject_code)
     )
+    """)
 
     conn.commit()
     conn.close()
 
+# ---------------- SEED DATA ----------------
 
-# ---------- DATA ACCESS FUNCTIONS ----------
-
-def get_student_by_login(usn, password):
-    """Case-insensitive USN match + exact password."""
-    conn = get_connection()
+def seed_data():
+    conn = get_conn()
     cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT usn, name, branch, semester, section, email, phone, photo_url
-        FROM students
-        WHERE UPPER(usn) = UPPER(?) AND password = ?;
-        """,
-        (usn, password),
-    )
-    row = cur.fetchone()
-    conn.close()
-    return row
 
+    # Student
+    cur.execute("""
+    INSERT OR IGNORE INTO students
+    (usn, name, branch, semester, section, email, phone, password, photo)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        "BCOM0057",
+        "VENUGOPAL G",
+        "B.COM",
+        6,
+        "A",
+        "vg5690275@gmail.com",
+        "6360611534",
+        "venu@123",
+        "venugopal.JPG"
+    ))
 
-def get_student_by_usn(usn):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT usn, name, branch, semester, section, email, phone, photo_url
-        FROM students
-        WHERE usn = ?;
-        """,
-        (usn,),
-    )
-    row = cur.fetchone()
-    conn.close()
-    return row
+    # Marks (ALL SEMESTERS)
+    marks = [
+        # SEM 1
+        ("BCOM0057",1,"B.COM 1.1","FINANCIAL ACCOUNTING",18,45,63,"A","PASS"),
+        ("BCOM0057",1,"B.COM 1.2","MANAGEMENT PRINCIPLES",20,60,80,"A","PASS"),
+        ("BCOM0057",1,"B.COM 1.3","PRINCIPLES OF MARKETING",20,65,85,"A+","PASS"),
+        ("BCOM0057",1,"B.COM 1.4","DIGITAL FLUENCY",18,50,68,"A","PASS"),
+        ("BCOM0057",1,"B.COM 1.5","ACCOUNTING FOR EVERYONE",16,55,71,"A","PASS"),
+        ("BCOM0057",1,"LANG I","LANGUAGE - I",23,59,82,"A+","PASS"),
 
+        # SEM 2
+        ("BCOM0057",2,"B.COM 2.1","ADVANCED FINANCIAL",18,50,68,"A","PASS"),
+        ("BCOM0057",2,"B.COM 2.2","CORPORATE ADMINISTRATION",15,59,74,"A","PASS"),
+        ("BCOM0057",2,"B.COM 2.3","BANKING LAW & PRACTICE",16,62,78,"A","PASS"),
+        ("BCOM0057",2,"B.COM 2.4","ENVIRONMENTAL STUDIES",14,55,69,"A","PASS"),
+        ("BCOM0057",2,"B.COM 2.5","INVESTING IN STOCK MARKETS",15,60,75,"A","PASS"),
+        ("BCOM0057",2,"LANG II","LANGUAGE - II",22,50,72,"A","PASS"),
 
-def get_semesters_for_student(usn):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT DISTINCT semester
-        FROM marks
-        WHERE usn = ?
-        ORDER BY semester;
-        """,
-        (usn,),
-    )
-    rows = cur.fetchall()
-    conn.close()
-    return [r[0] for r in rows]
+        # SEM 3
+        ("BCOM0057",3,"B.COM 3.1","CORPORATE ACCOUNTING",15,50,65,"A","PASS"),
+        ("BCOM0057",3,"B.COM 3.2","BUSINESS STATISTICS",21,45,66,"A","PASS"),
+        ("BCOM0057",3,"B.COM 3.3","COST ACCOUNTING",18,60,78,"A","PASS"),
+        ("BCOM0057",3,"B.COM 3.4","FINANCIAL EDUCATION",19,52,71,"A","PASS"),
+        ("BCOM0057",3,"LANG III","LANGUAGE - III",20,50,70,"A","PASS"),
+        ("BCOM0057",3,"SPORTS","SPORTS",21,54,75,"A","PASS"),
 
+        # SEM 4
+        ("BCOM0057",4,"B.COM 4.1","ADVANCED CORPORATE ACCOUNTING",17,50,67,"A","PASS"),
+        ("BCOM0057",4,"B.COM 4.2","COSTING METHODS",22,45,67,"A","PASS"),
+        ("BCOM0057",4,"B.COM 4.3","BUSINESS REGULATORY",20,42,62,"A","PASS"),
+        ("BCOM0057",4,"B.COM 4.4","ARTIFICIAL INTELLIGENCE",19,52,71,"A","PASS"),
+        ("BCOM0057",4,"B.COM 4.5","BUSINESS ETHICS",20,50,70,"A","PASS"),
+        ("BCOM0057",4,"LANG IV","LANGUAGE - IV",21,59,80,"A+","PASS"),
 
-def get_marks_for_student_sem(usn, semester):
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT subject_code, subject_name, internal, external, total, grade, result
-        FROM marks
-        WHERE usn = ? AND semester = ?
-        ORDER BY subject_code;
-        """,
-        (usn, semester),
-    )
-    rows = cur.fetchall()
-    conn.close()
-    return rows
+        # SEM 5
+        ("BCOM0057",5,"B.COM 5.1","MARKETING MANAGEMENT",19,55,74,"A","PASS"),
+        ("BCOM0057",5,"B.COM 5.2","INCOME TAX",22,50,72,"A","PASS"),
+        ("BCOM0057",5,"B.COM 5.3","CORPORATE GOVERNANCE",22,45,67,"A","PASS"),
+        ("BCOM0057",5,"B.COM 5.4","AUDITING",14,52,66,"A","PASS"),
+        ("BCOM0057",5,"B.COM 5.5","CORPORATE COMMUNICATION",18,55,68,"A","PASS"),
+        ("BCOM0057",5,"B.COM 5.6","PROJECT - I",21,60,81,"A+","PASS"),
 
+        # SEM 6
+        ("BCOM0057",6,"B.COM 6.1","LAW",18,40,58,"B","PASS"),
+        ("BCOM0057",6,"B.COM 6.2","ACCOUNTING & FINANCE",20,46,66,"A","PASS"),
+        ("BCOM0057",6,"B.COM 6.3","TAXATION",22,52,74,"A","PASS"),
+        ("BCOM0057",6,"B.COM 6.4","MANAGEMENT",15,58,73,"A","PASS"),
+        ("BCOM0057",6,"B.COM 6.5","IT",20,55,75,"A","PASS"),
+        ("BCOM0057",6,"B.COM 6.6","INTERNSHIP",21,62,83,"A+","PASS"),
+    ]
 
-def get_overall_stats(usn):
-    """Calculate overall CGPA-like value and pass/fail."""
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT total, result
-        FROM marks
-        WHERE usn = ?
-        """,
-        (usn,),
-    )
-    rows = cur.fetchall()
+    cur.executemany("""
+    INSERT OR IGNORE INTO marks
+    (usn, semester, subject_code, subject_name, internal, external, total, grade, result)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, marks)
+
+    conn.commit()
     conn.close()
 
-    if not rows:
-        return None, None
+# ---------------- LOGIN ----------------
 
-    totals = [r[0] for r in rows]
-    results = [r[1] for r in rows]
+def login():
+    st.title("🎓 Student Login")
 
-    avg_total = sum(totals) / len(totals)
-    cgpa = round(avg_total / 10, 2)  # approximate
-    overall_result = "FAIL" if "FAIL" in results else "PASS"
+    usn = st.text_input("USN", key="login_usn")
+    password = st.text_input("Password", type="password", key="login_password")
 
-    return cgpa, overall_result
+    if st.button("Login", key="login_btn"):
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT usn FROM students WHERE usn=? AND password=?",
+            (usn, password)
+        )
+        row = cur.fetchone()
+        conn.close()
 
-
-# ---------- UI COMPONENTS ----------
-
-def show_login():
-    st.title("🎓 Student Portal Login")
-
-    with st.form("login_form"):
-        usn = st.text_input("USN / Student ID")
-        password = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("Login")
-
-    if submitted:
-        if not usn or not password:
-            st.error("Please enter both USN and password.")
-            return
-
-        student = get_student_by_login(usn.strip(), password.strip())
-        if student:
-            st.session_state["logged_in"] = True
-            st.session_state["usn"] = student[0]
-            st.experimental_rerun()
+        if row:
+            st.session_state["usn"] = usn
+            st.rerun()
         else:
-            st.error("Invalid USN or password.")
+            st.error("Invalid USN or Password")
 
+# ---------------- DASHBOARD ----------------
 
-def show_dashboard():
-    usn = st.session_state.get("usn")
-    student = get_student_by_usn(usn)
+def dashboard():
+    usn = st.session_state["usn"]
+    conn = get_conn()
 
-    if not student:
-        st.error("Student not found.")
-        return
+    student = pd.read_sql("SELECT * FROM students WHERE usn=?", conn, params=(usn,))
+    marks = pd.read_sql("SELECT * FROM marks WHERE usn=?", conn, params=(usn,))
+    conn.close()
 
-    s_usn, s_name, s_branch, s_sem, s_section, s_email, s_phone, s_photo = student
+    st.title("🎓 Student Dashboard")
 
-    # Top bar
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        st.title("🎓 Student Dashboard")
-    with col2:
-        if st.button("Logout"):
-            st.session_state.clear()
-            st.experimental_rerun()
+    photo = student.loc[0, "photo"]
+    if photo and os.path.exists(photo):
+        st.image(photo, width=150)
 
-    st.markdown("---")
-
-    # Student Profile
-    col1, col2 = st.columns([1, 3])
-    with col1:
-        st.image(
-            "janardhana.png",
-            caption=s_name,
-            width=150,
-        )
-    with col2:
-        st.subheader(s_name)
-        st.write(f"**USN:** {s_usn}")
-        st.write(f"**Branch:** {s_branch}")
-        st.write(f"**Current Semester:** {s_sem}")
-        st.write(f"**Section:** {s_section}")
-        st.write(f"**Email:** {s_email}")
-        st.write(f"**Phone:** {s_phone}")
+    st.subheader(student.loc[0, "name"])
+    st.write("**USN:**", usn)
+    st.write("**Branch:**", student.loc[0, "branch"])
+    st.write("**Email:**", student.loc[0, "email"])
 
     st.markdown("---")
 
-    # Semester-wise marks
-    st.subheader("📚 Semester-wise Marks Card")
+    marks["semester"] = marks["semester"].astype(int)
+    semesters = sorted(marks["semester"].unique())
 
-    semesters = get_semesters_for_student(s_usn)
-    if not semesters:
-        st.info("No marks data available for this student.")
-        return
+    selected_sem = st.selectbox(
+        "Select Semester",
+        semesters,
+        key="semester_dropdown"
+    )
 
-    selected_sem = st.selectbox("Select Semester", semesters)
+    sem_data = marks[marks["semester"] == selected_sem]
 
-    rows = get_marks_for_student_sem(s_usn, selected_sem)
-    if rows:
-        df = pd.DataFrame(
-            rows,
-            columns=[
-                "Subject Code",
-                "Subject Name",
-                "Internal Marks",
-                "External Marks",
-                "Total Marks",
-                "Grade",
-                "Result",
-            ],
-        )
-        st.dataframe(df, use_container_width=True)
+    st.dataframe(
+        sem_data[
+            ["subject_code","subject_name","internal","external","total","grade","result"]
+        ],
+        use_container_width=True
+    )
 
-        totals = df["Total Marks"]
-        avg_total = totals.mean()
-        sgpa = round(avg_total / 10, 2)  # fake SGPA
-        sem_result = "FAIL" if "FAIL" in df["Result"].values else "PASS"
+    sgpa = round(sem_data["total"].mean() / 10, 2)
+    cgpa = round(marks["total"].mean() / 10, 2)
 
-        st.markdown("### 📊 Semester Summary")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Average Marks", f"{avg_total:.2f}")
-        with col2:
-            st.metric("SGPA (approx)", f"{sgpa:.2f}")
-        with col3:
-            if sem_result == "PASS":
-                st.success("Semester Result: PASS")
-            else:
-                st.error("Semester Result: FAIL")
-    else:
-        st.info("No marks found for the selected semester.")
+    st.success(f"SGPA: {sgpa}")
+    st.success(f"CGPA: {cgpa}")
 
-    st.markdown("---")
+    if st.button("Logout", key="logout_btn"):
+        del st.session_state["usn"]
+        st.rerun()
 
-    # Overall performance
-    st.subheader("🏆 Overall Performance")
-    cgpa, overall_result = get_overall_stats(s_usn)
-    if cgpa is None:
-        st.info("No overall data available.")
-    else:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("CGPA (approx)", f"{cgpa:.2f}")
-        with col2:
-            if overall_result == "PASS":
-                st.success("Overall Status: PASS")
-            else:
-                st.error("Overall Status: FAIL")
+# ---------------- MAIN ----------------
 
+init_db()
+seed_data()
 
-# ---------- MAIN APP ----------
-
-def main():
-    st.set_page_config(page_title="Student Portal", page_icon="🎓", layout="wide")
-
-    # Only ensure tables exist – no seeding here
-    init_db()
-
-    if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
-        show_login()
-    else:
-        show_dashboard()
-
-
-if __name__ == "__main__":
-    main()
-
+if "usn" not in st.session_state:
+    login()
+else:
+    dashboard()
