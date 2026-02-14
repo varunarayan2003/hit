@@ -1,7 +1,6 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-import os
 
 DB_NAME = "student_portal.db"
 
@@ -23,8 +22,7 @@ def init_db():
         section TEXT,
         email TEXT,
         phone TEXT,
-        password TEXT,
-        photo TEXT
+        password TEXT
     )
     """)
 
@@ -39,13 +37,30 @@ def init_db():
         external INTEGER,
         total INTEGER,
         grade TEXT,
-        result TEXT,
-        UNIQUE(usn, semester, subject_code)
+        result TEXT
     )
     """)
 
     conn.commit()
     conn.close()
+
+
+# ---------------- GRADE FUNCTION ----------------
+
+def calculate_grade(total):
+    if total >= 90:
+        return "S"
+    elif total >= 80:
+        return "A"
+    elif total >= 70:
+        return "B"
+    elif total >= 60:
+        return "C"
+    elif total >= 50:
+        return "D"
+    else:
+        return "F"
+
 
 # ---------------- SEED DATA ----------------
 
@@ -53,106 +68,127 @@ def seed_data():
     conn = get_conn()
     cur = conn.cursor()
 
-    # Student
+    # Insert Student
     cur.execute("""
     INSERT OR IGNORE INTO students
-    (usn, name, branch, semester, section, email, phone, password, photo)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, (
-        "BCOM0057",
-        "VENUGOPAL G",
-        "B.COM",
+        "506CS20188",
+        "KOUSHIK N",
+        "CSE",
         6,
         "A",
-        "vg5690275@gmail.com",
-        "6360611534",
-        "venu@123",
-        "venugopal.JPG"
+        "koushik@example.com",
+        "9876543210",
+        "password"
     ))
 
-    # Marks (ALL SEMESTERS)
-    marks = [
+    # Delete old marks
+    cur.execute("DELETE FROM marks WHERE usn=?", ("506CS20188",))
+
+    real_marks_data = [
+
         # SEM 1
-        ("BCOM0057",1,"B.COM 1.1","FINANCIAL ACCOUNTING",18,45,63,"A","PASS"),
-        ("BCOM0057",1,"B.COM 1.2","MANAGEMENT PRINCIPLES",20,60,80,"A","PASS"),
-        ("BCOM0057",1,"B.COM 1.3","PRINCIPLES OF MARKETING",20,65,85,"A+","PASS"),
-        ("BCOM0057",1,"B.COM 1.4","DIGITAL FLUENCY",18,50,68,"A","PASS"),
-        ("BCOM0057",1,"B.COM 1.5","ACCOUNTING FOR EVERYONE",16,55,71,"A","PASS"),
-        ("BCOM0057",1,"LANG I","LANGUAGE - I",23,59,82,"A+","PASS"),
+        (1,"15SC01M","ENGINEERING MATHS - I",20,77),
+        (1,"15SC03S","APPLIED SCIENCE",20,80),
+        (1,"15EC01T","CNCPT OF ELE & ELECTROENGG",14,53),
+        (1,"15SC04P","APPLIED SCIENCE LAB",22,40),
+        (1,"15EC02P","BASIC ELECTRONICS LAB",19,30),
+        (1,"15CS11P","B C S LAB",21,40),
 
         # SEM 2
-        ("BCOM0057",2,"B.COM 2.1","ADVANCED FINANCIAL",18,50,68,"A","PASS"),
-        ("BCOM0057",2,"B.COM 2.2","CORPORATE ADMINISTRATION",15,59,74,"A","PASS"),
-        ("BCOM0057",2,"B.COM 2.3","BANKING LAW & PRACTICE",16,62,78,"A","PASS"),
-        ("BCOM0057",2,"B.COM 2.4","ENVIRONMENTAL STUDIES",14,55,69,"A","PASS"),
-        ("BCOM0057",2,"B.COM 2.5","INVESTING IN STOCK MARKETS",15,60,75,"A","PASS"),
-        ("BCOM0057",2,"LANG II","LANGUAGE - II",22,50,72,"A","PASS"),
+        (2,"15SC02M","ENGINEERING MATHS - II",20,75),
+        (2,"15CP01E","COMMN SKILLS IN ENGLISH",23,81),
+        (2,"15CS21T","DIGITAL & COMP FUNDMNTLS",25,85),
+        (2,"15EC03P","DIGITAL ELECTRONICS LAB",22,44),
+        (2,"15CS22P","BASIC WEB DESIGN LAB",22,44),
+        (2,"15CS23P","MULTIMEDIA LAB",18,36),
 
         # SEM 3
-        ("BCOM0057",3,"B.COM 3.1","CORPORATE ACCOUNTING",15,50,65,"A","PASS"),
-        ("BCOM0057",3,"B.COM 3.2","BUSINESS STATISTICS",21,45,66,"A","PASS"),
-        ("BCOM0057",3,"B.COM 3.3","COST ACCOUNTING",18,60,78,"A","PASS"),
-        ("BCOM0057",3,"B.COM 3.4","FINANCIAL EDUCATION",19,52,71,"A","PASS"),
-        ("BCOM0057",3,"LANG III","LANGUAGE - III",20,50,70,"A","PASS"),
-        ("BCOM0057",3,"SPORTS","SPORTS",21,54,75,"A","PASS"),
+        (3,"15CS31T","PROGRAMMING WITH C",22,95),
+        (3,"15CS32T","COMPUTER ORG",19,64),
+        (3,"15CS33T","DBMS",20,79),
+        (3,"15CS34T","COMPUTER NETWORKS",23,73),
+        (3,"15CS35P","PROGRAMM WITH C LAB",21,44),
+        (3,"15CS36P","DBMS & GUI LAB",19,47),
+        (3,"15CS37P","N/W ADMINSTRATION LAB",24,46),
 
         # SEM 4
-        ("BCOM0057",4,"B.COM 4.1","ADVANCED CORPORATE ACCOUNTING",17,50,67,"A","PASS"),
-        ("BCOM0057",4,"B.COM 4.2","COSTING METHODS",22,45,67,"A","PASS"),
-        ("BCOM0057",4,"B.COM 4.3","BUSINESS REGULATORY",20,42,62,"A","PASS"),
-        ("BCOM0057",4,"B.COM 4.4","ARTIFICIAL INTELLIGENCE",19,52,71,"A","PASS"),
-        ("BCOM0057",4,"B.COM 4.5","BUSINESS ETHICS",20,50,70,"A","PASS"),
-        ("BCOM0057",4,"LANG IV","LANGUAGE - IV",21,59,80,"A+","PASS"),
+        (4,"15CS41T","DATA STRUCTURES USING C",18,75),
+        (4,"15CS42T","OOP WITH JAVA",18,75),
+        (4,"15CS43T","OPERATING SYSTEM",19,77),
+        (4,"15CS44T","PROFSNL ETHICS & INDIAN CONSTITUTION",22,83),
+        (4,"15CS45P","DATA STRUCTURES LAB",23,46),
+        (4,"15CS46P","OOP WITH JAVA LAB",24,48),
+        (4,"15CS47P","LINUX LAB",24,48),
 
         # SEM 5
-        ("BCOM0057",5,"B.COM 5.1","MARKETING MANAGEMENT",19,55,74,"A","PASS"),
-        ("BCOM0057",5,"B.COM 5.2","INCOME TAX",22,50,72,"A","PASS"),
-        ("BCOM0057",5,"B.COM 5.3","CORPORATE GOVERNANCE",22,45,67,"A","PASS"),
-        ("BCOM0057",5,"B.COM 5.4","AUDITING",14,52,66,"A","PASS"),
-        ("BCOM0057",5,"B.COM 5.5","CORPORATE COMMUNICATION",18,55,68,"A","PASS"),
-        ("BCOM0057",5,"B.COM 5.6","PROJECT - I",21,60,81,"A+","PASS"),
+        (5,"15CS5IT","SOFTWARE ENGINEERING",21,78),
+        (5,"15C5527","WEB",21,75),
+        (5,"15C553T","ADA",22,75),
+        (5,"15CS54T","GREEN COMPUTING",24,88),
+        (5,"15C555P","WEB LAB",20,30),
+        (5,"15C56P","ADR LAB",23,40),
+        (5,"15C557P","PP LAB",21,47),
 
         # SEM 6
-        ("BCOM0057",6,"B.COM 6.1","LAW",18,40,58,"B","PASS"),
-        ("BCOM0057",6,"B.COM 6.2","ACCOUNTING & FINANCE",20,46,66,"A","PASS"),
-        ("BCOM0057",6,"B.COM 6.3","TAXATION",22,52,74,"A","PASS"),
-        ("BCOM0057",6,"B.COM 6.4","MANAGEMENT",15,58,73,"A","PASS"),
-        ("BCOM0057",6,"B.COM 6.5","IT",20,55,75,"A","PASS"),
-        ("BCOM0057",6,"B.COM 6.6","INTERNSHIP",21,62,83,"A+","PASS"),
+        (6,"15C861T","SOFTWARE TESTING",23,96),
+        (6,"15CS62T","NETWORK SECURITY MANAGEMENT",23,79),
+        (6,"SCS63T","INTERNET OF THINGS",21,72),
+        (6,"156564P","SOFTWARE TESTING LAB",16,40),
+        (6,"15CS65P","NETWORK SECURITY LAB",21,40),
+        (6,"ISCS67P","PROJECT WORK - II",20,35),
     ]
 
-    cur.executemany("""
-    INSERT OR IGNORE INTO marks
-    (usn, semester, subject_code, subject_name, internal, external, total, grade, result)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, marks)
+    for sem, code, name, internal, external in real_marks_data:
+        total = internal + external
+        grade = calculate_grade(total)
+        result = "PASS" if total >= 40 else "FAIL"
+
+        cur.execute("""
+        INSERT INTO marks
+        (usn, semester, subject_code, subject_name, internal, external, total, grade, result)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            "506CS20188",
+            sem,
+            code,
+            name,
+            internal,
+            external,
+            total,
+            grade,
+            result
+        ))
 
     conn.commit()
     conn.close()
+
 
 # ---------------- LOGIN ----------------
 
 def login():
     st.title("🎓 Student Login")
 
-    usn = st.text_input("USN", key="login_usn")
-    password = st.text_input("Password", type="password", key="login_password")
+    usn = st.text_input("USN")
+    password = st.text_input("Password", type="password")
 
-    if st.button("Login", key="login_btn"):
+    if st.button("Login"):
         conn = get_conn()
         cur = conn.cursor()
         cur.execute(
-            "SELECT usn FROM students WHERE usn=? AND password=?",
+            "SELECT * FROM students WHERE usn=? AND password=?",
             (usn, password)
         )
-        row = cur.fetchone()
+        user = cur.fetchone()
         conn.close()
 
-        if row:
+        if user:
             st.session_state["usn"] = usn
             st.rerun()
         else:
             st.error("Invalid USN or Password")
+
 
 # ---------------- DASHBOARD ----------------
 
@@ -166,10 +202,6 @@ def dashboard():
 
     st.title("🎓 Student Dashboard")
 
-    photo = student.loc[0, "photo"]
-    if photo and os.path.exists(photo):
-        st.image(photo, width=150)
-
     st.subheader(student.loc[0, "name"])
     st.write("**USN:**", usn)
     st.write("**Branch:**", student.loc[0, "branch"])
@@ -177,21 +209,13 @@ def dashboard():
 
     st.markdown("---")
 
-    marks["semester"] = marks["semester"].astype(int)
     semesters = sorted(marks["semester"].unique())
-
-    selected_sem = st.selectbox(
-        "Select Semester",
-        semesters,
-        key="semester_dropdown"
-    )
+    selected_sem = st.selectbox("Select Semester", semesters)
 
     sem_data = marks[marks["semester"] == selected_sem]
 
     st.dataframe(
-        sem_data[
-            ["subject_code","subject_name","internal","external","total","grade","result"]
-        ],
+        sem_data[["subject_code","subject_name","internal","external","total","grade","result"]],
         use_container_width=True
     )
 
@@ -201,9 +225,10 @@ def dashboard():
     st.success(f"SGPA: {sgpa}")
     st.success(f"CGPA: {cgpa}")
 
-    if st.button("Logout", key="logout_btn"):
+    if st.button("Logout"):
         del st.session_state["usn"]
         st.rerun()
+
 
 # ---------------- MAIN ----------------
 
