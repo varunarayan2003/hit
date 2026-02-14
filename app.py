@@ -6,6 +6,12 @@ import os
 DB_NAME = "student_portal.db"
 
 # -----------------------------
+# DELETE OLD DB (DEV MODE)
+# -----------------------------
+if os.path.exists(DB_NAME):
+    os.remove(DB_NAME)
+
+# -----------------------------
 # DATABASE CONNECTION
 # -----------------------------
 def get_conn():
@@ -19,9 +25,8 @@ def init_db():
     cur = conn.cursor()
 
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS students (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        usn TEXT UNIQUE,
+    CREATE TABLE students (
+        usn TEXT PRIMARY KEY,
         name TEXT,
         branch TEXT,
         semester INTEGER,
@@ -29,12 +34,12 @@ def init_db():
         email TEXT,
         phone TEXT,
         password TEXT,
-        photo_url TEXT
+        photo TEXT
     );
     """)
 
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS marks (
+    CREATE TABLE marks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         usn TEXT,
         semester INTEGER,
@@ -44,8 +49,7 @@ def init_db():
         external INTEGER,
         total INTEGER,
         grade TEXT,
-        result TEXT,
-        FOREIGN KEY(usn) REFERENCES students(usn)
+        result TEXT
     );
     """)
 
@@ -70,16 +74,14 @@ def calculate_grade(total):
         return "F"
 
 # -----------------------------
-# SEED DATA (OFFICIAL MARKS)
+# INSERT DATA
 # -----------------------------
 def seed_data():
     conn = get_conn()
     cur = conn.cursor()
 
-    # Insert Student
     cur.execute("""
-    INSERT OR IGNORE INTO students
-    (usn, name, branch, semester, section, email, phone, password, photo_url)
+    INSERT INTO students
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         "506CS20188",
@@ -90,11 +92,8 @@ def seed_data():
         "koushik@example.com",
         "9876543210",
         "password",
-        ""
+        "photo.png"
     ))
-
-    # Delete old marks to avoid duplicates
-    cur.execute("DELETE FROM marks WHERE usn=?", ("506CS20188",))
 
     real_marks_data = [
 
@@ -175,7 +174,7 @@ def seed_data():
     conn.close()
 
 # -----------------------------
-# LOGIN PAGE
+# LOGIN
 # -----------------------------
 def login():
     st.title("🎓 Student Login")
@@ -209,12 +208,20 @@ def dashboard():
 
     st.title("🎓 Student Dashboard")
 
-    st.subheader(student.loc[0, "name"])
-    st.write("**USN:**", usn)
-    st.write("**Branch:**", student.loc[0, "branch"])
-    st.write("**Email:**", student.loc[0, "email"])
+    # Show Photo
+    # Show Photo (Guaranteed Working Version)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    photo_path = os.path.join(current_dir, "photo.png")
 
-    st.markdown("---")
+    if os.path.exists(photo_path):
+         st.image(photo_path, width=150)
+    else:
+         st.error(f"photo.png not found in: {current_dir}")
+
+
+    st.subheader(student.loc[0, "name"])
+    st.write("USN:", usn)
+    st.write("Branch:", student.loc[0, "branch"])
 
     semesters = sorted(marks["semester"].unique())
     selected_sem = st.selectbox("Select Semester", semesters)
@@ -226,15 +233,12 @@ def dashboard():
         use_container_width=True
     )
 
+    # SGPA & CGPA
     sgpa = round(sem_data["total"].mean() / 10, 2)
     cgpa = round(marks["total"].mean() / 10, 2)
 
     st.success(f"SGPA: {sgpa}")
     st.success(f"CGPA: {cgpa}")
-
-    if st.button("Logout"):
-        del st.session_state["usn"]
-        st.rerun()
 
 # -----------------------------
 # MAIN
