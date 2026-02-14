@@ -1,29 +1,36 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
+import os
 
 DB_NAME = "student_portal.db"
 
-# ---------------- DATABASE ----------------
-
+# -----------------------------
+# DATABASE CONNECTION
+# -----------------------------
 def get_conn():
     return sqlite3.connect(DB_NAME, check_same_thread=False)
 
+# -----------------------------
+# CREATE TABLES
+# -----------------------------
 def init_db():
     conn = get_conn()
     cur = conn.cursor()
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS students (
-        usn TEXT PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        usn TEXT UNIQUE,
         name TEXT,
         branch TEXT,
         semester INTEGER,
         section TEXT,
         email TEXT,
         phone TEXT,
-        password TEXT
-    )
+        password TEXT,
+        photo_url TEXT
+    );
     """)
 
     cur.execute("""
@@ -37,16 +44,17 @@ def init_db():
         external INTEGER,
         total INTEGER,
         grade TEXT,
-        result TEXT
-    )
+        result TEXT,
+        FOREIGN KEY(usn) REFERENCES students(usn)
+    );
     """)
 
     conn.commit()
     conn.close()
 
-
-# ---------------- GRADE FUNCTION ----------------
-
+# -----------------------------
+# GRADE FUNCTION
+# -----------------------------
 def calculate_grade(total):
     if total >= 90:
         return "S"
@@ -61,9 +69,9 @@ def calculate_grade(total):
     else:
         return "F"
 
-
-# ---------------- SEED DATA ----------------
-
+# -----------------------------
+# SEED DATA (OFFICIAL MARKS)
+# -----------------------------
 def seed_data():
     conn = get_conn()
     cur = conn.cursor()
@@ -71,7 +79,8 @@ def seed_data():
     # Insert Student
     cur.execute("""
     INSERT OR IGNORE INTO students
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    (usn, name, branch, semester, section, email, phone, password, photo_url)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         "506CS20188",
         "KOUSHIK N",
@@ -80,10 +89,11 @@ def seed_data():
         "A",
         "koushik@example.com",
         "9876543210",
-        "password"
+        "password",
+        ""
     ))
 
-    # Delete old marks
+    # Delete old marks to avoid duplicates
     cur.execute("DELETE FROM marks WHERE usn=?", ("506CS20188",))
 
     real_marks_data = [
@@ -164,9 +174,9 @@ def seed_data():
     conn.commit()
     conn.close()
 
-
-# ---------------- LOGIN ----------------
-
+# -----------------------------
+# LOGIN PAGE
+# -----------------------------
 def login():
     st.title("🎓 Student Login")
 
@@ -176,10 +186,7 @@ def login():
     if st.button("Login"):
         conn = get_conn()
         cur = conn.cursor()
-        cur.execute(
-            "SELECT * FROM students WHERE usn=? AND password=?",
-            (usn, password)
-        )
+        cur.execute("SELECT * FROM students WHERE usn=? AND password=?", (usn, password))
         user = cur.fetchone()
         conn.close()
 
@@ -189,9 +196,9 @@ def login():
         else:
             st.error("Invalid USN or Password")
 
-
-# ---------------- DASHBOARD ----------------
-
+# -----------------------------
+# DASHBOARD
+# -----------------------------
 def dashboard():
     usn = st.session_state["usn"]
     conn = get_conn()
@@ -229,9 +236,9 @@ def dashboard():
         del st.session_state["usn"]
         st.rerun()
 
-
-# ---------------- MAIN ----------------
-
+# -----------------------------
+# MAIN
+# -----------------------------
 init_db()
 seed_data()
 
