@@ -26,7 +26,7 @@ def create_database():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
 
-    # TABLES
+    # STUDENT TABLE
     cur.execute("""
     CREATE TABLE students (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,11 +37,11 @@ def create_database():
         section TEXT,
         email TEXT,
         phone TEXT,
-        password TEXT,
-        photo_url TEXT
+        password TEXT
     )
     """)
 
+    # MARKS TABLE
     cur.execute("""
     CREATE TABLE marks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,9 +57,9 @@ def create_database():
     )
     """)
 
-    # INSERT STUDENT
+    # INSERT STUDENT LOGIN DATA
     cur.execute("""
-    INSERT INTO students VALUES (NULL,?,?,?,?,?,?,?,?,?)
+    INSERT INTO students VALUES (NULL,?,?,?,?,?,?,?,?)
     """, (
         "506EC21028",
         "BALAJI K N",
@@ -68,72 +68,38 @@ def create_database():
         "A",
         "balaji@example.com",
         "9876543210",
-        "password",
-        ""
+        "1234"   # PASSWORD
     ))
 
-    # --------------------------
     # ALL SEM MARKS
-    # --------------------------
     marks_data = [
 
     # SEM 1
     (1,"21EC01M","Engineering Maths I",20,65),
     (1,"21EC01T","Applied Science",19,80),
-    (1,"21EC01T","Basic Electrical & Electronics",15,50),
-    (1,"21EC01P","Applied Science Lab",20,40),
-    (1,"21EC01P","BEEE Lab",19,30),
-    (1,"21EC01P","Computer Concepts Lab",22,30),
+    (1,"21EC01T","Basic Electrical",15,50),
 
     # SEM 2
     (2,"21EC02M","Engineering Maths II",23,75),
-    (2,"21EC02E","Communication English",20,84),
-    (2,"21EC02T","Semiconductor Devices",19,55),
-    (2,"21EC02P","Semiconductor Lab",22,43),
-    (2,"21EC02P","Digital Electronics Lab",19,35),
-    (2,"21EC12P","Maths Simulation Lab",22,36),
+    (2,"21EC02E","English",20,84),
 
     # SEM 3
     (3,"21EC31T","Analog Circuits",23,95),
-    (3,"21EC32T","Digital Electronics",19,55),
-    (3,"21EC33T","EMI",20,78),
-    (3,"21EC34T","Analog Communication",23,74),
-    (3,"21EC35P","Analog & Comm Lab",21,44),
-    (3,"21EC36P","Digital Electronics Lab",19,35),
-    (3,"21EC37P","C Lab",22,46),
 
     # SEM 4
-    (4,"21EC41T","Microcontroller & Applications",18,75),
-    (4,"21EC42T","Digital Communication",18,75),
-    (4,"21EC43T","Data Communication & Networks",19,77),
-    (4,"21EC44T","Professional Ethics",22,83),
-    (4,"21EC45P","DC & Networking Lab",23,46),
-    (4,"21EC46P","Practice Lab",24,48),
-    (4,"21EC47P","Microcontroller Lab",24,48),
+    (4,"21EC41T","Microcontroller",18,75),
 
     # SEM 5
-    (5,"21EC51T","OM & Entrepreneurship",21,81),
-    (5,"21EC52T","ARM Controller",22,65),
-    (5,"21EC53T","AD Communication",19,74),
-    (5,"21EC54T","Applications of ECE",24,84),
-    (5,"21EC55P","Applications Lab",23,41),
-    (5,"21EC56P","PCB Design & FabLab",21,45),
-    (5,"21EC57P","Electrical Servicing",22,40),
+    (5,"21EC51T","Entrepreneurship",21,81),
 
     # SEM 6
-    (6,"21EC61T","Industrial Automation",24,96),
-    (6,"21EC62T","Embedded Systems",24,69),
-    (6,"21EC63T","Medical Electronics",20,77),
-    (6,"21EC64P","Automation Lab",17,41),
-    (6,"21EC65P","Verilog Lab",21,40),
-    (6,"21EC66P","Project Work II",22,35),
+    (6,"15CS61T","Industrial Automation",24,96),
     ]
 
-    # INSERT MARKS
     for sem, code, name, internal, external in marks_data:
         total = internal + external
         grade = calculate_grade(total)
-        result = "PASS" if total >= 40 else "FAIL"
+        result = "PASS"
 
         cur.execute("""
         INSERT INTO marks
@@ -156,44 +122,85 @@ def create_database():
     conn.close()
 
 # --------------------------
-# FETCH DATA
+# LOGIN FUNCTION
 # --------------------------
-def get_marks(semester):
+def login(usn, password):
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM students WHERE usn=? AND password=?", (usn, password))
+    user = cur.fetchone()
+
+    conn.close()
+    return user
+
+# --------------------------
+# GET MARKS
+# --------------------------
+def get_marks(usn, sem):
     conn = sqlite3.connect(DB_NAME)
     df = pd.read_sql_query(
-        "SELECT subject_code, subject_name, internal, external, total, grade FROM marks WHERE semester=?",
+        "SELECT subject_name, internal, external, total, grade FROM marks WHERE usn=? AND semester=?",
         conn,
-        params=(semester,)
+        params=(usn, sem)
     )
     conn.close()
     return df
 
 # --------------------------
-# STREAMLIT UI
+# SESSION STATE
 # --------------------------
-st.set_page_config(page_title="Student Portal", layout="wide")
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
 
-st.title("🎓 Student Portal Dashboard")
+# --------------------------
+# UI
+# --------------------------
+st.title("🎓 Student Portal")
 
-# BUTTON TO CREATE DB
+# CREATE DB BUTTON
 if st.button("Create Database"):
     create_database()
-    st.success("✅ Database created successfully!")
+    st.success("Database Created!")
 
-# SEMESTER SELECT
-st.subheader("📚 View Marks")
+# --------------------------
+# LOGIN PAGE
+# --------------------------
+if not st.session_state.logged_in:
 
-sem = st.selectbox("Select Semester", [1,2,3,4,5,6])
+    st.subheader("🔐 Student Login")
 
-if st.button("Show Results"):
-    if not os.path.exists(DB_NAME):
-        st.error("⚠️ Please create database first!")
-    else:
-        df = get_marks(sem)
-        st.dataframe(df, use_container_width=True)
+    usn = st.text_input("Enter USN")
+    password = st.text_input("Enter Password", type="password")
 
-        total_marks = df["total"].sum()
-        percentage = total_marks / len(df)
+    if st.button("Login"):
+        user = login(usn, password)
 
-        st.success(f"🎯 Total Marks: {total_marks}")
-        st.info(f"📊 Average: {percentage:.2f}")
+        if user:
+            st.session_state.logged_in = True
+            st.session_state.usn = usn
+            st.success("Login Successful!")
+        else:
+            st.error("Invalid USN or Password")
+
+# --------------------------
+# DASHBOARD
+# --------------------------
+else:
+    st.success(f"Welcome {st.session_state.usn}")
+
+    if st.button("Logout"):
+        st.session_state.logged_in = False
+
+    sem = st.selectbox("Select Semester", [1,2,3,4,5,6])
+
+    if st.button("View Marks"):
+        df = get_marks(st.session_state.usn, sem)
+        st.dataframe(df)
+
+        if not df.empty:
+            total = df["total"].sum()
+            avg = total / len(df)
+
+            st.info(f"Total Marks: {total}")
+            st.success(f"Average: {avg:.2f}")
