@@ -68,7 +68,7 @@ def create_database():
         "A",
         "balaji@example.com",
         "9876543210",
-        "1234"   # PASSWORD
+        "password"   # PASSWORD
     ))
 
     # ALL SEM MARKS
